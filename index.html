@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>DCT Field SOP — Live Jira</title>
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --surface-2: #f7f8fa;
+    --border: #e2e5ea;
+    --text: #1a2235;
+    --text-sub: #4a5568;
+    --text-muted: #8f9bb3;
+    --blue: #1e56d9;
+    --blue-light: #e8effd;
+    --green: #0a7c59;
+    --green-light: #e6f7f2;
+    --green-mid: #27ae60;
+    --yellow: #8a5c00;
+    --yellow-light: #fef9e7;
+    --yellow-mid: #f0b429;
+    --red: #c0392b;
+    --red-light: #fdf0ef;
+    --red-mid: #e74c3c;
+    --orange: #b54708;
+    --orange-light: #fff4ec;
+    --purple: #403294;
+    --purple-light: #eae6ff;
+    --teal: #006068;
+    --teal-light: #e6fcff;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --r: 8px; --r-sm: 4px; --r-pill: 20px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface-2: #21263a; --border: #2d3347;
+      --text: #e8eaf0; --text-sub: #a0aabf; --text-muted: #5a6480;
+      --blue: #4d7fff; --blue-light: #1a2545;
+      --green: #2ecc71; --green-light: #0a2218; --green-mid: #2ecc71;
+      --yellow: #f0b429; --yellow-light: #221a00; --yellow-mid: #f0b429;
+      --red: #e74c3c; --red-light: #2a0f0f; --red-mid: #e74c3c;
+      --orange: #f0b429; --orange-light: #221a00;
+      --purple: #a28fff; --purple-light: #1e1640;
+      --teal: #4dd0e1; --teal-light: #002a30;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.5; min-height: 100vh; }
+  .shell { max-width: 480px; margin: 0 auto; min-height: 100vh; background: var(--bg); }
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 16px 12px; position: sticky; top: 0; z-index: 50; }
+  .doc-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .doc-id { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+  .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: var(--r-pill); font-size: 11px; font-weight: 600; }
+  .badge-blue { background: var(--blue-light); color: var(--blue); }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-live { background: #fdf0ef; color: var(--red); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+  .doc-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 10px; line-height: 1.3; }
+  .progress-track { background: var(--surface-2); border-radius: 4px; height: 5px; overflow: hidden; margin-bottom: 4px; }
+  .progress-fill { height: 100%; background: var(--blue); border-radius: 4px; transition: width 0.4s ease; }
+  .progress-label { font-size: 11px; color: var(--text-muted); text-align: right; }
+  .tabs { display: flex; gap: 4px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex-shrink: 0; padding: 7px 14px; border-radius: var(--r-pill); font-size: 13px; font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--text-sub); cursor: pointer; white-space: nowrap; transition: all 0.15s; user-select: none; }
+  .tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .tab:not(.active):hover { background: var(--surface-2); }
+  .panel { display: none; padding: 16px; }
+  .panel.active { display: block; }
+  .callout { display: flex; gap: 10px; padding: 10px 14px; border-radius: var(--r); border-left: 3px solid; margin-bottom: 14px; font-size: 13px; line-height: 1.5; }
+  .callout.danger { background: var(--red-light); border-color: var(--red-mid); color: var(--red); }
+  .callout.warn { background: var(--yellow-light); border-color: var(--yellow-mid); color: var(--yellow); }
+  .callout.info { background: var(--blue-light); border-color: var(--blue); color: var(--blue); }
+  .callout.tip { background: var(--green-light); border-color: var(--green-mid); color: var(--green); }
+  .callout-icon { font-size: 15px; flex-shrink: 0; line-height: 1.5; }
+  .check-item { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .check-item:last-child { border-bottom: none; }
+  .check-circle { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; background: var(--surface); }
+  .check-circle:hover { border-color: var(--blue); }
+  .check-circle.done { background: var(--green-mid); border-color: var(--green-mid); }
+  .check-circle.done::after { content: ''; width: 5px; height: 9px; border-right: 2.5px solid #fff; border-bottom: 2.5px solid #fff; transform: rotate(40deg) translate(-1px, -1px); display: block; }
+  .check-body { flex: 1; }
+  .check-text { font-size: 14px; color: var(--text); line-height: 1.4; transition: all 0.2s; }
+  .check-text.done { color: var(--text-muted); text-decoration: line-through; }
+  .check-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px; margin-bottom: 10px; transition: all 0.2s; }
+  .step-card.active-step { border-color: var(--blue); border-width: 2px; }
+  .step-card.done-step { opacity: 0.5; }
+  .step-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .step-num { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; font-family: var(--mono); background: var(--blue-light); color: var(--blue); transition: all 0.2s; }
+  .step-num.done-num { background: var(--green-light); color: var(--green); }
+  .step-num.active-num { background: var(--blue); color: #fff; }
+  .step-title { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; line-height: 1.3; }
+  .role-tag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: var(--r-pill); flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.04em; }
+  .role-dct { background: var(--blue-light); color: var(--blue); }
+  .role-lead { background: var(--purple-light); color: var(--purple); }
+  .role-both { background: var(--teal-light); color: var(--teal); }
+  .step-desc { font-size: 13px; color: var(--text-sub); line-height: 1.55; margin-bottom: 8px; }
+  .step-subs { list-style: none; margin: 6px 0 8px; }
+  .step-subs li { font-size: 13px; color: var(--text-sub); padding: 4px 0 4px 14px; position: relative; line-height: 1.4; }
+  .step-subs li::before { content: ''; position: absolute; left: 4px; top: 11px; width: 5px; height: 5px; border-radius: 50%; background: var(--border); }
+  .step-callout { display: flex; gap: 8px; padding: 8px 10px; border-radius: var(--r-sm); font-size: 12px; line-height: 1.4; margin: 8px 0; }
+  .step-callout.danger { background: var(--red-light); color: var(--red); }
+  .step-callout.warn { background: var(--yellow-light); color: var(--yellow); }
+  .mark-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 9px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text-sub); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-top: 4px; }
+  .mark-btn:hover { background: var(--surface); border-color: var(--text-muted); }
+  .mark-btn.marked { background: var(--green-light); border-color: var(--green-mid); color: var(--green); }
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 10px; }
+  .dq { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px; margin-bottom: 10px; }
+  .dq-text { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 10px; line-height: 1.4; }
+  .dq-btns { display: flex; gap: 6px; }
+  .dq-btn { flex: 1; padding: 8px; border-radius: var(--r-sm); font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid; text-align: center; transition: all 0.15s; }
+  .dq-btn:hover { filter: brightness(0.95); }
+  .dq-btn.yes { background: var(--green-light); color: var(--green); border-color: #a9d18e; }
+  .dq-btn.no { background: var(--yellow-light); color: var(--yellow); border-color: #f0b429; }
+  .dq-btn.stop { background: var(--red-light); color: var(--red); border-color: #f09595; }
+  .dq-answer { display: none; font-size: 13px; color: var(--text-sub); line-height: 1.5; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .dq-answer.shown { display: block; }
+  .esc-card { display: flex; gap: 0; margin-bottom: 10px; }
+  .esc-bar { width: 5px; border-radius: 3px 0 0 3px; flex-shrink: 0; }
+  .t1 { background: var(--green-mid); } .t2 { background: var(--yellow-mid); } .t3 { background: var(--red-mid); } .t4 { background: #8e44ad; }
+  .esc-body { flex: 1; background: var(--surface); border: 1px solid var(--border); border-left: none; border-radius: 0 var(--r) var(--r) 0; padding: 12px 14px; }
+  .esc-tier { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 3px; }
+  .esc-role { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+  .esc-when { font-size: 12px; color: var(--text-sub); line-height: 1.5; margin-bottom: 5px; }
+  .esc-how { font-size: 12px; font-family: var(--mono); color: var(--text-muted); }
+  /* JIRA FORM */
+  .jira-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; }
+  .form-field { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 12px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+  .form-label span { color: var(--red); }
+  .form-input, .form-select, .form-textarea { width: 100%; padding: 9px 12px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 14px; font-family: var(--sans); appearance: none; -webkit-appearance: none; }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--blue); background: var(--surface); }
+  .form-textarea { min-height: 80px; resize: vertical; line-height: 1.5; }
+  .form-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%238f9bb3' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .submit-btn { width: 100%; padding: 12px; background: var(--blue); color: #fff; border: none; border-radius: var(--r-sm); font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+  .submit-btn:hover { filter: brightness(1.1); }
+  .submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .spinner { display: none; text-align: center; padding: 30px 16px; color: var(--text-muted); font-size: 14px; }
+  .spinner.active { display: block; }
+  .spin-anim { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .result-card { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; text-align: center; }
+  .result-card.shown { display: block; }
+  .result-card.success { border-color: var(--green-mid); }
+  .result-card.error { border-color: var(--red-mid); }
+  .result-icon { font-size: 32px; margin-bottom: 10px; }
+  .result-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .result-sub { font-size: 13px; color: var(--text-sub); line-height: 1.5; margin-bottom: 14px; }
+  .result-link { display: inline-block; background: var(--blue); color: #fff; padding: 10px 20px; border-radius: var(--r-sm); font-size: 14px; font-weight: 700; text-decoration: none; }
+  .result-link:hover { filter: brightness(1.1); }
+  .retry-btn { display: block; width: 100%; margin-top: 10px; padding: 9px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text-sub); font-size: 13px; font-weight: 600; cursor: pointer; }
+  .footer { padding: 16px; text-align: center; font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="header">
+    <div class="doc-meta">
+      <span class="doc-id">DCT-SOP-HW-001 · v1.0</span>
+      <span class="badge badge-green">Active</span>
+      <span class="badge badge-live">● Live Jira</span>
+    </div>
+    <div class="doc-title">Hardware Installation &amp; Replacement</div>
+    <div>
+      <div class="progress-track"><div class="progress-fill" id="pFill" style="width:0%"></div></div>
+      <div class="progress-label" id="pLabel">0 of 7 steps done</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('checklist',this)">Pre-work</div>
+    <div class="tab" onclick="switchTab('steps',this)">Steps</div>
+    <div class="tab" onclick="switchTab('decisions',this)">Decisions</div>
+    <div class="tab" onclick="switchTab('escalate',this)">Escalate</div>
+    <div class="tab" onclick="switchTab('jira',this)">Jira ↗</div>
+  </div>
+
+  <!-- PRE-WORK -->
+  <div class="panel active" id="panel-checklist">
+    <div class="callout danger"><span class="callout-icon">!</span><div><strong>Do not start</strong> until all items checked. Can't confirm any item? Stop and call your Lead.</div></div>
+    <div id="chklist">
+      <div class="check-item" data-cid="c0"><div class="check-circle" onclick="toggleCheck('c0')"></div><div class="check-body"><div class="check-text">Jira ticket open with correct asset tag and priority</div><div class="check-role">DCT</div></div></div>
+      <div class="check-item" data-cid="c1"><div class="check-circle" onclick="toggleCheck('c1')"></div><div class="check-body"><div class="check-text">Part number on replacement matches work order exactly</div><div class="check-role">DCT</div></div></div>
+      <div class="check-item" data-cid="c2"><div class="check-circle" onclick="toggleCheck('c2')"></div><div class="check-body"><div class="check-text">Change request approved — or emergency auth documented in ticket</div><div class="check-role">Lead</div></div></div>
+      <div class="check-item" data-cid="c3"><div class="check-circle" onclick="toggleCheck('c3')"></div><div class="check-body"><div class="check-text">ESD wrist strap tested and grounded</div><div class="check-role">DCT</div></div></div>
+      <div class="check-item" data-cid="c4"><div class="check-circle" onclick="toggleCheck('c4')"></div><div class="check-body"><div class="check-text">System powered down or component confirmed hot-swappable</div><div class="check-role">DCT + Lead</div></div></div>
+      <div class="check-item" data-cid="c5"><div class="check-circle" onclick="toggleCheck('c5')"></div><div class="check-body"><div class="check-text">Customer/team notified if downtime expected (30 min advance)</div><div class="check-role">Lead</div></div></div>
+      <div class="check-item" data-cid="c6"><div class="check-circle" onclick="toggleCheck('c6')"></div><div class="check-body"><div class="check-text">All tools staged before entering the cage</div><div class="check-role">DCT</div></div></div>
+      <div class="check-item" data-cid="c7"><div class="check-circle" onclick="toggleCheck('c7')"></div><div class="check-body"><div class="check-text">Second technician confirmed for lifts over 20 lbs</div><div class="check-role">DCT</div></div></div>
+    </div>
+  </div>
+
+  <!-- STEPS -->
+  <div class="panel" id="panel-steps">
+    <div id="stepsWrap">
+      <div class="step-card active-step" id="step-0"><div class="step-top"><div class="step-num active-num" id="sn-0">1</div><div class="step-title">Verify work order &amp; authorization</div><span class="role-tag role-lead">Lead</span></div><div class="step-desc">Lead confirms ticket is open, hardware staged, change window active. Get ticket number + asset tag before entering the cage.</div><ul class="step-subs"><li>Jira ticket = In Progress</li><li>Asset tag on ticket matches physical rack label</li><li>Change window active or emergency auth in ticket</li></ul><div class="mark-btn" id="sb-0" onclick="markStep(0)">Mark done</div></div>
+      <div class="step-card" id="step-1"><div class="step-top"><div class="step-num" id="sn-1">2</div><div class="step-title">Access cage &amp; locate asset</div><span class="role-tag role-dct">DCT</span></div><div class="step-desc">Badge in. Navigate to rack using layout diagram in the ticket. Confirm asset tag and slot position before touching anything.</div><div class="mark-btn" id="sb-1" onclick="markStep(1)">Mark done</div></div>
+      <div class="step-card" id="step-2"><div class="step-top"><div class="step-num" id="sn-2">3</div><div class="step-title">Power down or confirm hot-swap</div><span class="role-tag role-dct">DCT</span></div><div class="step-callout danger"><span>!</span><span>Never pull a non-hot-swap component while live. Unsure? Stop — call on-call engineer first.</span></div><div class="step-desc">If not hot-swappable: graceful shutdown via IPMI/iDRAC/BMC. Wait for fans/LEDs off. For hot-swap drives: OS spin-down first.</div><div class="mark-btn" id="sb-2" onclick="markStep(2)">Mark done</div></div>
+      <div class="step-card" id="step-3"><div class="step-top"><div class="step-num" id="sn-3">4</div><div class="step-title">Remove faulty hardware</div><span class="role-tag role-dct">DCT</span></div><div class="step-desc">ESD protection on. Remove failed component. Label and bag the faulty unit.</div><ul class="step-subs"><li>Attach ESD strap to chassis ground point</li><li>Photo in-situ before removal → attach to Jira</li><li>Note cable orientation — photo if complex</li><li>Bag unit: label Ticket#, Asset Tag, Date, Name</li></ul><div class="mark-btn" id="sb-3" onclick="markStep(3)">Mark done</div></div>
+      <div class="step-card" id="step-4"><div class="step-top"><div class="step-num" id="sn-4">5</div><div class="step-title">Install replacement hardware</div><span class="role-tag role-dct">DCT</span></div><div class="step-callout warn"><span>⚠</span><span>Do not force components. Resistance = stop and reassess.</span></div><div class="step-desc">Verify part number one final time. Seat firmly. Reconnect cables in documented order. Replace screws with calibrated torque driver.</div><div class="mark-btn" id="sb-4" onclick="markStep(4)">Mark done</div></div>
+      <div class="step-card" id="step-5"><div class="step-top"><div class="step-num" id="sn-5">6</div><div class="step-title">Power on &amp; validate</div><span class="role-tag role-both">DCT + Lead</span></div><div class="step-desc">Power on via BMC/iDRAC. Observe POST. Confirm component detected. Run health check. Lead counter-signs ticket.</div><ul class="step-subs"><li>Drive: enumeration + smartctl</li><li>GPU: nvidia-smi shows device</li><li>NIC: link state up, correct speed</li></ul><div class="mark-btn" id="sb-5" onclick="markStep(5)">Mark done</div></div>
+      <div class="step-card" id="step-6"><div class="step-top"><div class="step-num" id="sn-6">7</div><div class="step-title">Document &amp; close ticket</div><span class="role-tag role-dct">DCT</span></div><div class="step-desc">Update Jira before closing. Stage faulty unit for RMA/disposal.</div><ul class="step-subs"><li>Attach all photos (before/during/after)</li><li>Log replacement serial in asset management</li><li>Note time spent + any SOP deviations</li><li>Move to Done — only after Lead sign-off</li></ul><div class="mark-btn" id="sb-6" onclick="markStep(6)">Mark done</div></div>
+    </div>
+  </div>
+
+  <!-- DECISIONS -->
+  <div class="panel" id="panel-decisions">
+    <div class="section-label">Tap a button to see what to do</div>
+    <div class="dq"><div class="dq-text">Replacement part number doesn't exactly match the work order?</div><div class="dq-btns"><div class="dq-btn stop" onclick="showAns('dq0','stop')">Mismatch</div><div class="dq-btn yes" onclick="showAns('dq0','ok')">It matches</div></div><div class="dq-answer" id="dq0-stop">Stop. Contact Shift Lead before using any alternate part. Get verbal approval and document the cross-reference in the Jira ticket comments.</div><div class="dq-answer" id="dq0-ok">Good to go — continue with installation steps.</div></div>
+    <div class="dq"><div class="dq-text">Not sure if the component is hot-swappable?</div><div class="dq-btns"><div class="dq-btn stop" onclick="showAns('dq1','stop')">Not sure</div><div class="dq-btn yes" onclick="showAns('dq1','ok')">Confirmed safe</div></div><div class="dq-answer" id="dq1-stop">Stop. Call the on-call engineer before pulling anything. Document your question in the ticket.</div><div class="dq-answer" id="dq1-ok">Proceed with power-down or hot-swap steps as confirmed.</div></div>
+    <div class="dq"><div class="dq-text">System didn't POST or component not detected after installation?</div><div class="dq-btns"><div class="dq-btn no" onclick="showAns('dq2','retry')">Re-seat &amp; retry</div><div class="dq-btn stop" onclick="showAns('dq2','esc')">Still failing</div></div><div class="dq-answer" id="dq2-retry">Re-seat and retry POST once. If still failing after second attempt — escalate to Tier 2 immediately.</div><div class="dq-answer" id="dq2-esc">Escalate to on-call engineer now. No further hardware changes. Document all symptoms, POST codes, errors in Jira. Go to Escalate tab.</div></div>
+    <div class="dq"><div class="dq-text">Found unexpected physical damage — burns, water, broken traces?</div><div class="dq-btns"><div class="dq-btn stop" onclick="showAns('dq3','stop')">Found damage</div><div class="dq-btn yes" onclick="showAns('dq3','ok')">All clear</div></div><div class="dq-answer" id="dq3-stop">Stop all work immediately. Do not power on. Photograph all damage now. Notify Shift Lead in person. File a separate incident ticket below.</div><div class="dq-answer" id="dq3-ok">No issue — continue per SOP steps.</div></div>
+  </div>
+
+  <!-- ESCALATE -->
+  <div class="panel" id="panel-escalate">
+    <div class="callout warn"><span class="callout-icon">⚠</span><div>Escalate in tier order. <strong>Don't skip tiers.</strong> Log every escalation in Jira: timestamp + person + response.</div></div>
+    <div class="esc-card"><div class="esc-bar t1"></div><div class="esc-body"><div class="esc-tier">Tier 1 · First call</div><div class="esc-role">Shift Lead / DC-OPS Lead</div><div class="esc-when">Part mismatch · hot-swap uncertainty · sign-off required · step unclear</div><div class="esc-how">→ Radio or in-person · 5 min response</div></div></div>
+    <div class="esc-card"><div class="esc-bar t2"></div><div class="esc-body"><div class="esc-tier">Tier 2 · Technical</div><div class="esc-role">On-Call Engineer</div><div class="esc-when">Won't POST · not detected after re-seat · Lead directed you here</div><div class="esc-how">→ On-call phone · 15 min SLA · have ticket # ready</div></div></div>
+    <div class="esc-card"><div class="esc-bar t3"></div><div class="esc-body"><div class="esc-tier">Tier 3 · Management</div><div class="esc-role">DC Manager / Ops Manager</div><div class="esc-when">Production impact · safety concern · unresolved &gt;30 min at Tier 2</div><div class="esc-how">→ Phone · open P1/P2 incident in Jira simultaneously</div></div></div>
+    <div class="esc-card"><div class="esc-bar t4"></div><div class="esc-body"><div class="esc-tier">Tier 4 · Vendor / OEM</div><div class="esc-role">OEM Support</div><div class="esc-when">Warranty replacement · firmware corruption · beyond internal capacity</div><div class="esc-how">→ Engineer opens vendor case · provide serial + symptoms + photos</div></div></div>
+  </div>
+
+  <!-- JIRA LIVE -->
+  <div class="panel" id="panel-jira">
+    <div class="callout info"><span class="callout-icon">ℹ</span><div>Creates a ticket directly in <strong>DO (dct-ops)</strong> on coreweave.atlassian.net via the Jira REST API. Requires your Jira API token — stored only in this browser session.</div></div>
+
+    <!-- API TOKEN SETUP -->
+    <div id="tokenSection">
+      <div class="jira-wrap" style="margin-bottom:12px;">
+        <div class="form-field" style="margin-bottom:10px;">
+          <label class="form-label">Your Jira email <span>*</span></label>
+          <input class="form-input" id="jiraEmail" type="email" placeholder="you@coreweave.com" />
+        </div>
+        <div class="form-field" style="margin-bottom:10px;">
+          <label class="form-label">Jira API token <span>*</span></label>
+          <input class="form-input" id="jiraToken" type="password" placeholder="Paste your API token here" />
+        </div>
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:10px; line-height:1.5;">
+          Get your token at <strong>id.atlassian.com → Security → API tokens</strong>. It's stored only in memory for this session and never sent anywhere except Jira's API.
+        </div>
+        <button class="submit-btn" onclick="saveToken()" style="font-size:13px; padding:9px;">Save &amp; continue</button>
+      </div>
+    </div>
+
+    <!-- TICKET FORM -->
+    <div id="ticketSection" style="display:none;">
+      <div id="jiraFormWrap">
+        <div class="jira-wrap">
+          <div class="form-field">
+            <label class="form-label">Ticket type <span>*</span></label>
+            <select class="form-select" id="jiraType">
+              <option value="escalation">Escalation — hardware issue during SOP</option>
+              <option value="incident">Incident — unexpected damage or safety concern</option>
+              <option value="followup">Follow-up — post-job documentation</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label class="form-label">Asset tag <span>*</span></label>
+              <input class="form-input" id="jiraAsset" type="text" placeholder="e.g. S943425X4C07975" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Rack / slot</label>
+              <input class="form-input" id="jiraRack" type="text" placeholder="s6-r184-node-03" />
+            </div>
+          </div>
+          <div class="form-field">
+            <label class="form-label">Related ticket #</label>
+            <input class="form-input" id="jiraRelated" type="text" placeholder="e.g. DO-106881" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">Priority <span>*</span></label>
+            <select class="form-select" id="jiraPriority">
+              <option value="Medium">Medium — standard, no production impact</option>
+              <option value="High">High — degraded service, impact likely</option>
+              <option value="Critical">Critical — active production outage or safety</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label">What happened? <span>*</span></label>
+            <textarea class="form-textarea" id="jiraDesc" placeholder="What you observed, which SOP step you were on, what you've already tried. Include POST codes or errors if applicable."></textarea>
+          </div>
+          <div class="form-field">
+            <label class="form-label">Escalation tier reached</label>
+            <select class="form-select" id="jiraTier">
+              <option value="None">None yet</option>
+              <option value="Tier 1 (Shift Lead)">Tier 1 — Shift Lead notified</option>
+              <option value="Tier 2 (On-Call Engineer)">Tier 2 — On-call Engineer notified</option>
+              <option value="Tier 3 (Management)">Tier 3 — Management notified</option>
+            </select>
+          </div>
+          <button class="submit-btn" id="createBtn" onclick="createTicket()">Create Jira Ticket ↗</button>
+        </div>
+      </div>
+
+      <div class="spinner" id="spinner">
+        <div class="spin-anim"></div>
+        <div>Creating ticket in DO project...</div>
+      </div>
+
+      <div class="result-card" id="resultCard">
+        <div class="result-icon" id="resultIcon"></div>
+        <div class="result-title" id="resultTitle"></div>
+        <div class="result-sub" id="resultSub"></div>
+        <a class="result-link" id="resultLink" href="#" target="_blank" style="display:none;">Open in Jira ↗</a>
+        <button class="retry-btn" id="retryBtn" onclick="resetForm()" style="display:none;">Create another ticket</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">CoreWeave DC-OPS · DCT-SOP-HW-001 · v1.0 · Live: coreweave.atlassian.net/DO</div>
+</div>
+
+<script>
+var checks = {}, steps = {}, TOTAL = 7;
+var JIRA_BASE = 'https://coreweave.atlassian.net';
+var CLOUD_ID = '0b202827-7a05-4ef3-94f5-056caea69699';
+var PROJECT_KEY = 'DO';
+var _email = '', _token = '';
+
+function switchTab(id, el) {
+  document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.getElementById('panel-' + id).classList.add('active');
+  el.classList.add('active');
+}
+
+function toggleCheck(id) {
+  checks[id] = !checks[id];
+  var item = document.querySelector('[data-cid="' + id + '"]');
+  var circle = item.querySelector('.check-circle');
+  var text = item.querySelector('.check-text');
+  if (checks[id]) { circle.classList.add('done'); text.classList.add('done'); }
+  else { circle.classList.remove('done'); text.classList.remove('done'); }
+}
+
+function markStep(i) {
+  steps[i] = !steps[i];
+  var card = document.getElementById('step-' + i);
+  var btn = document.getElementById('sb-' + i);
+  var num = document.getElementById('sn-' + i);
+  if (steps[i]) {
+    card.classList.add('done-step'); card.classList.remove('active-step');
+    btn.classList.add('marked'); btn.textContent = 'Done ✓';
+    num.classList.add('done-num'); num.classList.remove('active-num'); num.textContent = '✓';
+    var next = document.getElementById('step-' + (i+1));
+    if (next) { next.classList.add('active-step'); document.getElementById('sn-'+(i+1)).classList.add('active-num'); }
+  } else {
+    card.classList.remove('done-step'); btn.classList.remove('marked'); btn.textContent = 'Mark done';
+    num.classList.remove('done-num'); num.textContent = i + 1;
+  }
+  var done = Object.values(steps).filter(Boolean).length;
+  document.getElementById('pFill').style.width = Math.round((done/TOTAL)*100) + '%';
+  document.getElementById('pLabel').textContent = done + ' of ' + TOTAL + ' steps done';
+}
+
+function showAns(qid, key) {
+  document.querySelectorAll('#' + qid + ' .dq-answer').forEach(function(a){ a.classList.remove('shown'); });
+  var el = document.getElementById(qid + '-' + key);
+  if (el) el.classList.add('shown');
+}
+
+function saveToken() {
+  _email = document.getElementById('jiraEmail').value.trim();
+  _token = document.getElementById('jiraToken').value.trim();
+  if (!_email || !_token) { alert('Email and token are required.'); return; }
+  document.getElementById('tokenSection').style.display = 'none';
+  document.getElementById('ticketSection').style.display = 'block';
+}
+
+function buildDescription(asset, rack, related, tier, desc) {
+  var lines = [
+    '----',
+    '*Created via DCT Field SOP Tool — DCT-SOP-HW-001 v1.0*',
+    '',
+    '*Asset Tag:* ' + asset,
+    rack ? '*Rack / Slot:* ' + rack : null,
+    related ? '*Related Ticket:* ' + related : null,
+    '*Escalation Tier Reached:* ' + tier,
+    '',
+    '*Issue Description:*',
+    desc,
+    '',
+    '----',
+    '_This ticket was created from the DCT Field SOP mobile tool._'
+  ].filter(function(l){ return l !== null; }).join('\n');
+  return lines;
+}
+
+async function createTicket() {
+  var asset = document.getElementById('jiraAsset').value.trim();
+  var desc = document.getElementById('jiraDesc').value.trim();
+  if (!asset || !desc) { alert('Asset tag and description are required.'); return; }
+
+  var type = document.getElementById('jiraType').value;
+  var rack = document.getElementById('jiraRack').value.trim();
+  var related = document.getElementById('jiraRelated').value.trim();
+  var priority = document.getElementById('jiraPriority').value;
+  var tier = document.getElementById('jiraTier').value;
+
+  var typeLabel = { escalation: 'Escalation', incident: 'Incident', followup: 'Follow-up' }[type];
+  var summary = 'DO Ticket: ' + typeLabel + ' — Asset ' + asset + (rack ? ' / ' + rack : '');
+  var fullDesc = buildDescription(asset, rack, related, tier, desc);
+
+  document.getElementById('jiraFormWrap').style.display = 'none';
+  document.getElementById('spinner').classList.add('active');
+  document.getElementById('createBtn').disabled = true;
+
+  var auth = btoa(_email + ':' + _token);
+  var body = {
+    fields: {
+      project: { key: PROJECT_KEY },
+      summary: summary,
+      issuetype: { name: 'Service Request' },
+      priority: { name: priority },
+      description: {
+        type: 'doc', version: 1,
+        content: [{
+          type: 'paragraph',
+          content: [{ type: 'text', text: fullDesc }]
+        }]
+      }
+    }
+  };
+
+  try {
+    var resp = await fetch(JIRA_BASE + '/rest/api/3/issue', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + auth,
+        'X-Atlassian-Token': 'no-check'
+      },
+      body: JSON.stringify(body)
+    });
+    var data = await resp.json();
+    document.getElementById('spinner').classList.remove('active');
+
+    if (resp.ok && data.key) {
+      showResult('success', '✓', 'Ticket created: ' + data.key,
+        'Your ticket has been created in the DO project. Switch to it in Jira to attach photos and update status.',
+        JIRA_BASE + '/browse/' + data.key, true);
+    } else {
+      var errMsg = data.errorMessages ? data.errorMessages.join(', ') : (data.errors ? JSON.stringify(data.errors) : 'Unknown error');
+      showResult('error', '✕', 'Jira API error', 'Status ' + resp.status + ': ' + errMsg, null, true);
+    }
+  } catch (e) {
+    document.getElementById('spinner').classList.remove('active');
+    showResult('error', '✕', 'Network error',
+      'Could not reach coreweave.atlassian.net. Check your connection and CORS settings. Error: ' + e.message, null, true);
+  }
+}
+
+function showResult(type, icon, title, sub, link, showRetry) {
+  var card = document.getElementById('resultCard');
+  card.className = 'result-card shown ' + type;
+  document.getElementById('resultIcon').textContent = icon;
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultSub').textContent = sub;
+  var linkEl = document.getElementById('resultLink');
+  if (link) { linkEl.href = link; linkEl.style.display = 'inline-block'; }
+  else { linkEl.style.display = 'none'; }
+  document.getElementById('retryBtn').style.display = showRetry ? 'block' : 'none';
+}
+
+function resetForm() {
+  document.getElementById('resultCard').className = 'result-card';
+  document.getElementById('jiraFormWrap').style.display = 'block';
+  document.getElementById('createBtn').disabled = false;
+  document.getElementById('jiraAsset').value = '';
+  document.getElementById('jiraDesc').value = '';
+  document.getElementById('jiraRack').value = '';
+  document.getElementById('jiraRelated').value = '';
+}
+</script>
+</body>
+</html>
